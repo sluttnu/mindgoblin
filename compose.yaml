@@ -3,7 +3,9 @@ services:
     image: ghcr.io/sluttnu/mindgoblin:${TAG:-latest}
     container_name: mindgoblin
     restart: unless-stopped
-    tmpfs: [/app/cache, /tmp]
+    tmpfs: [/tmp]
+    volumes:
+      - mindgoblin-cache:/app/cache
     environment:
       PORT: "8000"
     networks: [proxy]
@@ -12,3 +14,6 @@ networks:
   proxy:
     external: true
     name: proxy
+
+volumes:
+  mindgoblin-cache:

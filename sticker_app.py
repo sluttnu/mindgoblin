@@ -10,17 +10,18 @@ Only the Python standard library is used.
 """
 
 import json
+import os
 import re
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from html import escape
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 CACHE_DIR = Path(__file__).parent / "cache"
-PORT = 8000
+PORT = int(os.environ.get("PORT", 8000))
 
 STICKER_NAMES = [
     "Ancestral Hot Dog Minotaur",
@@ -130,4 +131,9 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"Serving on http://localhost:{PORT}  (cache dir: {CACHE_DIR})")
-    HTTPServer(("", PORT), Handler).serve_forever()
+    for n in STICKER_NAMES:
+        try:
+            get_card(n)
+        except Exception as e:
+            print(f"warmup failed for {n}: {e}")
+    ThreadingHTTPServer(("", PORT), Handler).serve_forever()
