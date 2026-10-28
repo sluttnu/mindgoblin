@@ -6,6 +6,7 @@ services:
     tmpfs: [/tmp]
     volumes:
       - mindgoblin-cache:/app/cache
+      - ./cardback.jpg:/app/cardback.jpg:ro
     environment:
       PORT: "8000"
     networks: [proxy]

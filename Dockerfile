@@ -1,7 +1,7 @@
 FROM python:3.12-alpine
 
 WORKDIR /app
-COPY sticker_app.py /app/sticker_app.py
+COPY sticker_app.py index.html /app/
 
 ENV PORT=8000
 

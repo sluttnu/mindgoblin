@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Tiny web server that shows ten Unfinity stickers in a grid.
+"""Tiny web server for the Unfinity sticker reveal game.
+
+Routes:
+  /               -> index.html (next to this file)
+  /api/cards      -> JSON list of {"name", "image"} for the ten stickers
+  /cardback.jpg   -> cardback.jpg (next to this file; gitignored)
 
 Card JSON is fetched from the Scryfall API once and cached as a file in
 ./cache, so later requests (and later runs) read from disk instead.
@@ -16,11 +21,11 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-CACHE_DIR = Path(__file__).parent / "cache"
+BASE_DIR = Path(__file__).parent
+CACHE_DIR = BASE_DIR / "cache"
 PORT = int(os.environ.get("PORT", 8000))
 
 STICKER_NAMES = [
@@ -74,66 +79,51 @@ def image_url(card: dict) -> str | None:
     return None
 
 
-def render_page() -> str:
-    cells = []
+def build_card_list() -> list[dict]:
+    cards = []
     for name in STICKER_NAMES:
         try:
             card = get_card(name)
             url = image_url(card)
             if url:
-                cells.append(
-                    f'<figure><img src="{escape(url)}" alt="{escape(card["name"])}" '
-                    f'loading="lazy"><figcaption>{escape(card["name"])}</figcaption></figure>'
-                )
+                cards.append({"name": card["name"], "image": url})
             else:
-                cells.append(f"<figure class='err'>No image for {escape(name)}</figure>")
+                print(f"no image for {name}")
         except (urllib.error.URLError, json.JSONDecodeError, KeyError) as e:
-            cells.append(f"<figure class='err'>{escape(name)}<br>Error: {escape(str(e))}</figure>")
-
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unfinity Stickers</title>
-<style>
-  body {{ font-family: system-ui, sans-serif; background: #1b1b1f; color: #eee; margin: 0; padding: 2rem; }}
-  h1 {{ text-align: center; }}
-  .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-          gap: 1.25rem; max-width: 1400px; margin: 0 auto; }}
-  figure {{ margin: 0; text-align: center; }}
-  img {{ width: 100%; height: auto; border-radius: 4.75%; box-shadow: 0 4px 14px rgba(0,0,0,.6); }}
-  figcaption {{ margin-top: .5rem; font-size: .9rem; opacity: .8; }}
-  .err {{ color: #ff8a8a; }}
-</style>
-</head>
-<body>
-<h1>Unfinity Stickers</h1>
-<div class="grid">
-{chr(10).join(cells)}
-</div>
-</body>
-</html>"""
+            print(f"failed to load {name}: {e}")
+    return cards
 
 
 class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path not in ("/", "/index.html"):
-            self.send_error(404)
-            return
-        body = render_page().encode("utf-8")
+    def _send(self, body: bytes, content_type: str, cache: str = "no-cache"):
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", cache)
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_file(self, filename: str, content_type: str, cache: str = "no-cache"):
+        path = BASE_DIR / filename
+        if not path.is_file():
+            self.send_error(404, f"{filename} not found")
+            return
+        self._send(path.read_bytes(), content_type, cache)
+
+    def do_GET(self):
+        route = self.path.split("?", 1)[0]
+        if route in ("/", "/index.html"):
+            self._send_file("index.html", "text/html; charset=utf-8")
+        elif route == "/cardback.jpg":
+            self._send_file("cardback.jpg", "image/jpeg", "public, max-age=86400")
+        elif route == "/api/cards":
+            body = json.dumps(build_card_list()).encode("utf-8")
+            self._send(body, "application/json")
+        else:
+            self.send_error(404)
+
 
 if __name__ == "__main__":
+    build_card_list()  # warm the cache at startup
     print(f"Serving on http://localhost:{PORT}  (cache dir: {CACHE_DIR})")
-    for n in STICKER_NAMES:
-        try:
-            get_card(n)
-        except Exception as e:
-            print(f"warmup failed for {n}: {e}")
     ThreadingHTTPServer(("", PORT), Handler).serve_forever()

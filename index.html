@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unfinity Stickers</title>
+<style>
+  :root {
+    --bg: #1b1b1f;
+    --fg: #eee;
+    --card-ratio: 488 / 680;
+  }
+  body {
+    font-family: system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    margin: 0;
+    padding: 2rem;
+  }
+  h1 { text-align: center; }
+  #status { text-align: center; opacity: .7; min-height: 1.5em; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.25rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Each card is a button so it is keyboard accessible. */
+  .card {
+    all: unset;
+    display: block;
+    cursor: pointer;
+    perspective: 1000px;
+    aspect-ratio: var(--card-ratio);
+  }
+  .card:focus-visible { outline: 2px solid #8ab4ff; outline-offset: 4px; border-radius: 5%; }
+  .card.flipped { cursor: default; }
+
+  .inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .6s;
+  }
+  .card.flipped .inner { transform: rotateY(180deg); }
+  .card:not(.flipped):hover .inner { transform: translateY(-4px); }
+
+  .face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 4.75%;
+    box-shadow: 0 4px 14px rgba(0,0,0,.6);
+    overflow: hidden;
+  }
+  .face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .face.back { background: #3a2a1a; }  /* shown if cardback.jpg is missing */
+  .face.front { transform: rotateY(180deg); background: #222; }
+
+  .err { color: #ff8a8a; text-align: center; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .inner { transition: none; }
+  }
+</style>
+</head>
+<body>
+<h1>Unfinity Stickers</h1>
+<p id="status">Loading…</p>
+<div class="grid" id="grid"></div>
+
+<script>
+  const grid = document.getElementById("grid");
+  const status = document.getElementById("status");
+
+  // Fisher-Yates shuffle
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function makeCard(card) {
+    const btn = document.createElement("button");
+    btn.className = "card";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Face-down card. Click to reveal.");
+
+    const inner = document.createElement("div");
+    inner.className = "inner";
+
+    const back = document.createElement("div");
+    back.className = "face back";
+    const backImg = document.createElement("img");
+    backImg.src = "/cardback.jpg";
+    backImg.alt = "";
+    backImg.onerror = () => backImg.remove();  // fall back to the plain colour
+    back.appendChild(backImg);
+
+    const front = document.createElement("div");
+    front.className = "face front";
+    const frontImg = document.createElement("img");
+    frontImg.src = card.image;  // preloaded now, so the flip is instant
+    frontImg.alt = card.name;
+    front.appendChild(frontImg);
+
+    inner.append(back, front);
+    btn.appendChild(inner);
+
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("flipped")) return;
+      btn.classList.add("flipped");
+      btn.setAttribute("aria-label", card.name);
+    });
+    return btn;
+  }
+
+  async function init() {
+    try {
+      const res = await fetch("/api/cards");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const cards = shuffle(await res.json());
+      if (!cards.length) throw new Error("no cards returned");
+      cards.forEach(c => grid.appendChild(makeCard(c)));
+      status.textContent = "Click a card to reveal it.";
+    } catch (e) {
+      status.textContent = "";
+      const p = document.createElement("p");
+      p.className = "err";
+      p.textContent = "Could not load cards: " + e.message;
+      grid.replaceWith(p);
+    }
+  }
+  init();
+</script>
+</body>
+</html>
