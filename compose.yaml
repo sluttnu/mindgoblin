@@ -3,7 +3,7 @@ services:
     image: ghcr.io/sluttnu/mindgoblin:${TAG:-latest}
     container_name: mindgoblin
     restart: unless-stopped
-    read_only: true
+    read_only: false
     tmpfs: [/var/cache/nginx, /var/run, /tmp]
     environment:
       PORT: "8000"
