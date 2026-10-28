@@ -1,0 +1,15 @@
+services:
+  slutt-web:
+    image: ghcr.io/sluttnu/mindgoblin:${TAG:-latest}
+    container_name: mindgoblin
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    environment:
+      PORT: "80"
+    networks: [proxy]
+
+networks:
+  proxy:
+    external: true
+    name: proxy
