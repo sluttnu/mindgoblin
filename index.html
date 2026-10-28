@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unfinity Stickers</title>
+<title>Name Stickers</title>
 <style>
   @font-face {
     font-family: "Beleren";
@@ -24,11 +24,10 @@
     padding: 2rem;
   }
   h1 { text-align: center; }
-  #status { text-align: center; opacity: .7; min-height: 1.5em; }
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1.25rem;
     max-width: 1400px;
     margin: 0 auto;
@@ -72,16 +71,16 @@
   .front img { transition: filter .4s .3s; }
   .card.flipped .front img { filter: brightness(.7); }
 
-  /* Name stickers: three buttons side by side at the top of the card. */
+  /* Name stickers: three stacked buttons, vertically centred on the card. */
   .names {
     position: absolute;
-    top: 4cqw;
-    left: 3cqw;
-    right: 3cqw;
+    top: 50%;
+    left: 6cqw;
+    right: 6cqw;
+    transform: translateY(-50%);
     display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    gap: 1.5cqw;
+    flex-direction: column;
+    gap: 2.5cqw;
     opacity: 0;
     visibility: hidden;
     transition: opacity .3s .4s, visibility 0s .4s;
@@ -91,16 +90,14 @@
   .name-sticker {
     font-family: "Beleren", Georgia, serif;
     font-weight: bold;
-    font-size: 3.8cqw;
-    line-height: 1.15;
+    font-size: 6cqw;
+    line-height: 1.1;
     color: #1a1a1a;
     text-align: center;
-    flex: 1 1 auto;   /* size by content; text wraps if a row gets too tight */
-    min-width: 0;
-    padding: 1.4cqw 1.6cqw;
+    padding: 1.6cqw 3cqw;
     background: linear-gradient(#f6f3ec, #cdc8bc);
     border: 1px solid #5b564c;
-    border-radius: 2cqw;
+    border-radius: 2.4cqw;
     box-shadow: 0 2px 5px rgba(0,0,0,.5);
     cursor: pointer;
     transition: opacity .2s, filter .2s, transform .1s;
@@ -110,21 +107,25 @@
   .name-sticker:focus-visible { outline: 2px solid #8ab4ff; outline-offset: 2px; }
   .name-sticker.used { opacity: .4; filter: grayscale(.6) brightness(.8); }
 
+  .card.leaving {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+  }
+
   .err { color: #ff8a8a; text-align: center; }
 
   @media (prefers-reduced-motion: reduce) {
-    .inner, .front img, .names, .name-sticker { transition: none; }
+    .inner, .front img, .names, .name-sticker, .card.leaving { transition: none; }
   }
 </style>
 </head>
 <body>
-<h1>Unfinity Stickers</h1>
-<p id="status">Loading…</p>
+<h1>Name Stickers</h1>
 <div class="grid" id="grid"></div>
 
 <script>
   const grid = document.getElementById("grid");
-  const status = document.getElementById("status");
 
   // Fisher-Yates shuffle
   function shuffle(arr) {
@@ -135,11 +136,21 @@
     return arr;
   }
 
+  const MAX_REVEALS = 3;
+  let revealed = 0;
+
+  function removeUnrevealed() {
+    grid.querySelectorAll(".card:not(.flipped)").forEach(c => {
+      c.classList.add("leaving");
+      setTimeout(() => c.remove(), 350);
+    });
+  }
+
   function makeStickerButton(word) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "name-sticker";
-    const vowels = (word.match(/[aeiou]/gi) || []).length;
+    const vowels = new Set(word.toLowerCase().match(/[aeiou]/g) || []).size;
     b.textContent = `${word} (${vowels})`;
     b.setAttribute("aria-pressed", "false");
     b.addEventListener("click", (e) => {
@@ -155,7 +166,7 @@
     el.className = "card";
     el.setAttribute("role", "button");
     el.tabIndex = 0;
-    el.setAttribute("aria-label", "Face-down card. Click to reveal.");
+    el.setAttribute("aria-label", "Face-down card");
 
     const inner = document.createElement("div");
     inner.className = "inner";
@@ -192,6 +203,7 @@
       el.removeAttribute("role");
       el.removeAttribute("tabindex");
       el.setAttribute("aria-label", card.name);
+      if (++revealed === MAX_REVEALS) removeUnrevealed();
     }
     el.addEventListener("click", reveal);
     el.addEventListener("keydown", (e) => {
@@ -210,9 +222,7 @@
       const cards = shuffle(await res.json());
       if (!cards.length) throw new Error("no cards returned");
       cards.forEach(c => grid.appendChild(makeCard(c)));
-      status.textContent = "Click a card to reveal it, then click a name sticker to use it.";
     } catch (e) {
-      status.textContent = "";
       const p = document.createElement("p");
       p.className = "err";
       p.textContent = "Could not load cards: " + e.message;
