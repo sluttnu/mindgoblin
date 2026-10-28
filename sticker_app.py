@@ -3,8 +3,9 @@
 
 Routes:
   /               -> index.html (next to this file)
-  /api/cards      -> JSON list of {"name", "image"} for the ten stickers
+  /api/cards      -> JSON list of {"name", "image", "words"} for the ten stickers
   /cardback.jpg   -> cardback.jpg (next to this file; gitignored)
+  /Beleren2016-Bold.ttf -> font for the name stickers (gitignored)
 
 Card JSON is fetched from the Scryfall API once and cached as a file in
 ./cache, so later requests (and later runs) read from disk instead.
@@ -40,6 +41,17 @@ STICKER_NAMES = [
     "Unglued Pea-Brained Dinosaur",
     "Unsanctioned Ancient Juggler",
 ]
+
+# Titles are split on spaces into three name stickers, except where a
+# sticker itself contains a space.
+SPECIAL_SPLITS = {
+    "Ancestral Hot Dog Minotaur": ["Ancestral", "Hot Dog", "Minotaur"],
+}
+
+
+def split_words(title: str) -> list[str]:
+    return SPECIAL_SPLITS.get(title, title.split(" "))
+
 
 SCRYFALL_URL = "https://api.scryfall.com/cards/named?fuzzy="
 # Scryfall asks API clients to send these headers.
@@ -86,7 +98,11 @@ def build_card_list() -> list[dict]:
             card = get_card(name)
             url = image_url(card)
             if url:
-                cards.append({"name": card["name"], "image": url})
+                cards.append({
+                    "name": card["name"],
+                    "image": url,
+                    "words": split_words(card["name"]),
+                })
             else:
                 print(f"no image for {name}")
         except (urllib.error.URLError, json.JSONDecodeError, KeyError) as e:
@@ -116,6 +132,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_file("index.html", "text/html; charset=utf-8")
         elif route == "/cardback.jpg":
             self._send_file("cardback.jpg", "image/jpeg")
+        elif route == "/Beleren2016-Bold.ttf":
+            self._send_file("Beleren2016-Bold.ttf", "font/ttf")
         elif route == "/api/cards":
             body = json.dumps(build_card_list()).encode("utf-8")
             self._send(body, "application/json")
