@@ -115,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
         if route in ("/", "/index.html"):
             self._send_file("index.html", "text/html; charset=utf-8")
         elif route == "/cardback.jpg":
-	    self._send_file("cardback.jpg", "image/jpeg")
+            self._send_file("cardback.jpg", "image/jpeg")
         elif route == "/api/cards":
             body = json.dumps(build_card_list()).encode("utf-8")
             self._send(body, "application/json")
