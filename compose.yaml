@@ -1,5 +1,5 @@
 services:
-  slutt-web:
+  mindgoblin:
     image: ghcr.io/sluttnu/mindgoblin:${TAG:-latest}
     container_name: mindgoblin
     restart: unless-stopped
