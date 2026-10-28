@@ -6,7 +6,7 @@ services:
     read_only: true
     tmpfs: [/var/cache/nginx, /var/run, /tmp]
     environment:
-      PORT: "80"
+      PORT: "8000"
     networks: [proxy]
 
 networks:
