@@ -67,9 +67,9 @@
   .face.back { background: #3a2a1a; }  /* shown if cardback.jpg is missing */
   .face.front { transform: rotateY(180deg); background: #222; }
 
-  /* Dim the card once it is revealed so the stickers stand out. */
-  .front img { transition: filter .4s .3s; }
-  .card.flipped .front img { filter: brightness(.7); }
+  /* Once all three cards are chosen, dim them so the stickers stand out. */
+  .front img { transition: filter .4s; }
+  .grid.ready .front img { filter: brightness(.7); }
 
   /* Name stickers: three stacked buttons, vertically centred on the card. */
   .names {
@@ -83,9 +83,9 @@
     gap: 2.5cqw;
     opacity: 0;
     visibility: hidden;
-    transition: opacity .3s .4s, visibility 0s .4s;
+    transition: opacity .3s;
   }
-  .card.flipped .names { opacity: 1; visibility: visible; }
+  .grid.ready .names { opacity: 1; visibility: visible; }
 
   .name-sticker {
     font-family: "Beleren", Georgia, serif;
@@ -110,7 +110,7 @@
   .card.leaving {
     opacity: 0;
     pointer-events: none;
-    transition: opacity .3s;
+    transition: opacity .6s;  /* same length as the flip */
   }
 
   .err { color: #ff8a8a; text-align: center; }
@@ -137,20 +137,32 @@
   }
 
   const MAX_REVEALS = 3;
-  let revealed = 0;
+  const selected = [];  // { el, card } in the order they were flipped
 
-  function removeUnrevealed() {
-    grid.querySelectorAll(".card:not(.flipped)").forEach(c => {
-      c.classList.add("leaving");
-      setTimeout(() => c.remove(), 350);
-    });
+  function makeNames(card) {
+    const names = document.createElement("div");
+    names.className = "names";
+    (card.words || []).forEach(w => names.appendChild(makeStickerButton(w)));
+    return names;
+  }
+
+  // Third card chosen: fade the rest out while it flips, then (after the flip
+  // has finished, so nothing shifts mid-animation) remove them and bring in the stickers.
+  function finish() {
+    grid.querySelectorAll(".card:not(.flipped)").forEach(c => c.classList.add("leaving"));
+    setTimeout(() => {
+      grid.querySelectorAll(".card.leaving").forEach(c => c.remove());
+      selected.forEach(({ el, card }) => el.querySelector(".front").appendChild(makeNames(card)));
+      void grid.offsetWidth;  // flush styles so the stickers fade in rather than appear
+      grid.classList.add("ready");
+    }, 700);
   }
 
   function makeStickerButton(word) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "name-sticker";
-    const vowels = new Set(word.toLowerCase().match(/[aeiou]/g) || []).size;
+    const vowels = (word.match(/[aeiou]/gi) || []).length;
     b.textContent = `${word} (${vowels})`;
     b.setAttribute("aria-pressed", "false");
     b.addEventListener("click", (e) => {
@@ -180,7 +192,7 @@
     backImg.onerror = () => backImg.remove();  // fall back to the plain colour
     back.appendChild(backImg);
 
-    // Front (card image + name stickers)
+    // Front (card image; name stickers are added once three cards are chosen)
     const front = document.createElement("div");
     front.className = "face front";
     const frontImg = document.createElement("img");
@@ -188,22 +200,18 @@
     frontImg.alt = card.name;
     front.appendChild(frontImg);
 
-    const names = document.createElement("div");
-    names.className = "names";
-    (card.words || []).forEach(w => names.appendChild(makeStickerButton(w)));
-    front.appendChild(names);
-
     inner.append(back, front);
     el.appendChild(inner);
 
     function reveal() {
       if (el.classList.contains("flipped")) return;
       el.classList.add("flipped");
-      // No longer a button: it now contains the sticker buttons.
+      // No longer a button once flipped.
       el.removeAttribute("role");
       el.removeAttribute("tabindex");
       el.setAttribute("aria-label", card.name);
-      if (++revealed === MAX_REVEALS) removeUnrevealed();
+      selected.push({ el, card });
+      if (selected.length === MAX_REVEALS) finish();
     }
     el.addEventListener("click", reveal);
     el.addEventListener("keydown", (e) => {
