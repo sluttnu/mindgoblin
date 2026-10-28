@@ -72,15 +72,16 @@
   .front img { transition: filter .4s .3s; }
   .card.flipped .front img { filter: brightness(.7); }
 
-  /* Name stickers: three stacked buttons at the top of the card. */
+  /* Name stickers: three buttons side by side at the top of the card. */
   .names {
     position: absolute;
-    top: 5cqw;
-    left: 6cqw;
-    right: 6cqw;
+    top: 4cqw;
+    left: 3cqw;
+    right: 3cqw;
     display: flex;
-    flex-direction: column;
-    gap: 2.5cqw;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 1.5cqw;
     opacity: 0;
     visibility: hidden;
     transition: opacity .3s .4s, visibility 0s .4s;
@@ -90,14 +91,16 @@
   .name-sticker {
     font-family: "Beleren", Georgia, serif;
     font-weight: bold;
-    font-size: 6.4cqw;
-    line-height: 1.1;
+    font-size: 3.8cqw;
+    line-height: 1.15;
     color: #1a1a1a;
     text-align: center;
-    padding: 1.6cqw 3cqw;
+    flex: 1 1 auto;   /* size by content; text wraps if a row gets too tight */
+    min-width: 0;
+    padding: 1.4cqw 1.6cqw;
     background: linear-gradient(#f6f3ec, #cdc8bc);
     border: 1px solid #5b564c;
-    border-radius: 2.4cqw;
+    border-radius: 2cqw;
     box-shadow: 0 2px 5px rgba(0,0,0,.5);
     cursor: pointer;
     transition: opacity .2s, filter .2s, transform .1s;
@@ -136,7 +139,8 @@
     const b = document.createElement("button");
     b.type = "button";
     b.className = "name-sticker";
-    b.textContent = word;
+    const vowels = (word.match(/[aeiou]/gi) || []).length;
+    b.textContent = `${word} (${vowels})`;
     b.setAttribute("aria-pressed", "false");
     b.addEventListener("click", (e) => {
       e.stopPropagation();
